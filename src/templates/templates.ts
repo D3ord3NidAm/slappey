@@ -30,7 +30,7 @@ import { registerCommands, registerSlashCommands, registerEvents } from './utils
 import config from '../slappey.json';
 import DiscordClient from './client/client';
 import { Intents } from 'discord.js';
-const client = new DiscordClient({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES ] });
+const client = new DiscordClient({ intents: 32767 });
 
 (async () => {
   client.prefix = config.prefix || client.prefix;
@@ -494,9 +494,9 @@ module.exports = class ${capitalize(name)}SlashCommand extends BaseSlashCommand 
 }
 
 export function getSlashCommandTemplateTS(name: string, category: string) {
-  return `import { Message } from 'discord.js';
+  return `import { CommandInteraction } from 'discord.js';
 import BaseSlashCommand from '../../utils/structures/BaseSlashCommand';
-import CommandInteraction from '../../client/client';
+import DiscordClient from '../../client/client';
 
 export default class ${capitalize(name)}SlashCommand extends BaseSlashCommand {
   constructor() {
@@ -504,7 +504,7 @@ export default class ${capitalize(name)}SlashCommand extends BaseSlashCommand {
   }
 
   async run(interaction: CommandInteraction) {
-    message.channel.send('${name} slash command works');
+    interaction.reply('${name} slash command works');
   }
 }`;
 }

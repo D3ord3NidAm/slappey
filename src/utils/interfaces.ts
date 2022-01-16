@@ -14,6 +14,7 @@ export interface ProjectScaffolder {
   createProject(name: string, language: Language): Promise<void>;
   createStructure(structure: StructureType): Promise<void>;
   createCommand(slappeyFilePath: string): Promise<void>;
+  createSlashCommand(slappeyFilePath: string): Promise<void>;
   createEvent(slappeyFilePath: string): Promise<void>;
 }
 
@@ -21,6 +22,7 @@ export interface ProjectPrompter {
   language(prompt: Array<PromptObject>): Promise<Language>;
   packageManager(prompt: Array<PromptObject>): Promise<PackageManagerType>;
   command(prompt: Array<PromptObject>): Promise<any>;
+  slashCommand(prompt: Array<PromptObject>): Promise<any>;
   event(prompt: Array<PromptObject>): Promise<any>;
   credentials(prompt: Array<PromptObject>): Promise<any>;
 }
@@ -28,12 +30,15 @@ export interface ProjectPrompter {
 export interface ProjectTemplateGenerator {
   generateUtilities(filePath: string): void;
   generateCommand(categoryPath: string, name: string, category: string): void;
+  generateSlashCommand(categoryPath: string, name: string, category: string): void;
   generateEvents(events: any[], eventsDir: string): void;
   generateBaseCommand(filePath: string): void;
+  generateBaseSlashCommand(filePath: string): void;
   generateBaseEvent(filePath: string): void;
   generateRegistry(filePath: string): void;
   generateDirectories(filePath: string): void;
   generateTestCommand(filePath: string): void;
+  generateTestSlashCommand(filePath: string): void;
   generateReadyEvent(filePath: string): void;
   generateMessageEvent(filePath: string): void;
   generateClient(filePath: string): void;

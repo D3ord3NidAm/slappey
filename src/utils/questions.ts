@@ -40,6 +40,11 @@ export const questions: Array<PromptObject> = [
         value: 'command',
         description: 'Generate a command?',
       },
+      {
+        title: 'Slash Command',
+        value: 'slashCommand',
+        description: 'Generate a slash command?',
+      },
       { title: 'Event', value: 'event', description: 'Generate an event?' },
     ],
   },
@@ -54,12 +59,12 @@ export const versionSelect: Array<PromptObject> = [
       {
         title: 'Latest',
         value: 'latest',
-        description: 'Install the latest version of Discord.JS v12',
+        description: 'Install the latest version of Discord.JS v13',
       },
       {
-        title: 'v11.6.4',
-        value: '11.6.4',
-        description: 'Install Discord.JS v11.6.4',
+        title: 'v13.6.0',
+        value: '13.6.0',
+        description: 'Install Discord.JS v13.6.0',
       },
     ],
   },
@@ -122,6 +127,13 @@ export const getCredentials: Array<PromptObject> = [
     validate: (value: string) =>
       value.length === 0 ? 'Cannot be empty' : true,
   },
+  {
+    type: 'text',
+    name: 'connect',
+    message: 'Enter your mongoose connection url or leave blank',
+    validate: (value: string) =>
+      value.length === 0 ? 'Cannot be empty' : false,
+  },
 ];
 
 export const getCommandPrompt: Array<PromptObject> = [
@@ -134,6 +146,19 @@ export const getCommandPrompt: Array<PromptObject> = [
     type: 'text',
     name: 'category',
     message: 'Enter the category of the command',
+  },
+];
+
+export const getSlashCommandPrompt: Array<PromptObject> = [
+  {
+    type: 'text',
+    name: 'name',
+    message: 'Enter the name of the slash command',
+  },
+  {
+    type: 'text',
+    name: 'category',
+    message: 'Enter the category of the slash command',
   },
 ];
 

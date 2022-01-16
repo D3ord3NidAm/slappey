@@ -338,7 +338,7 @@ export default class GuildUpdateEvent extends BaseEvent {
   }
 }`,
   interactionCreate: `// https://discord.js.org/#/docs/main/stable/class/Client?scrollTo=e-interactionCreate
-import { Interaction } from 'discord.js';
+import { Interaction, MessageEmbed } from 'discord.js';
 import BaseEvent from '../utils/structures/BaseEvent';
 import DiscordClient from '../client/client';
 
@@ -348,7 +348,15 @@ export default class InteractionCreateEvent extends BaseEvent {
   }
   
   async run(client: DiscordClient, interaction: Interaction) {
-    
+    if (interaction.isCommand() || interaction.isContextMenu()) {
+      const command = client.slashcommands.get(interaction.commandName);
+      if (!command) return interaction.reply({ embeds: [
+        new MessageEmbed()
+        .setColor("RED")
+        .setDescription("❌ - An error occured while running this command, deleting!")
+      ]}) && client.slashcommands.delete(interaction.commandName);
+      command.run(client, interaction)
+    }
   }
 }`,
   invalidated: `// https://discord.js.org/#/docs/main/stable/class/Client?scrollTo=e-invalidated

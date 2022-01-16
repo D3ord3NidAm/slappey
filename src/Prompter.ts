@@ -13,6 +13,7 @@ import {
   languageSelect,
   packageManager,
   getCommandPrompt,
+  getSlashCommandPrompt,
   questions,
 } from './utils/questions';
 
@@ -34,14 +35,19 @@ export class Prompter implements ProjectPrompter {
     return { name, category };
   }
 
+  async slashCommand(): Promise<CommandAnswer> {
+    const { name, category } = await prompts(getSlashCommandPrompt);
+    return { name, category };
+  }
+
   async event(): Promise<any[]> {
     const { events } = await prompts(eventGenerate);
     return events;
   }
 
   async credentials(): Promise<Credentials> {
-    const { token, prefix } = await prompts(getCredentials);
-    return { token, prefix };
+    const { token, prefix, connect } = await prompts(getCredentials);
+    return { token, prefix, connect };
   }
 
   async getChoice(): Promise<CLIArguments> {

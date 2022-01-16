@@ -61,13 +61,26 @@ module.exports = class GuildMemberChunksEvent extends BaseEvent {
   `,
   interactionCreate: `// https://discord.js.org/#/docs/main/stable/class/Client?scrollTo=e-interactionCreate
 const BaseEvent = require('../utils/structures/BaseEvent');
+const { Client, MessageEmbed, CommandInteraction } = require("discord.js");
 module.exports = class InteractionCreateEvent extends BaseEvent {
   constructor() {
     super('interactionCreate');
   }
-
+  /*
+  *
+  * @param {CommandInteraction} interaction
+  * @param {Client} client
+  */
   async run(client, interaction) {
-
+    if (interaction.isCommand() || interaction.isContextMenu()) {
+      const command = client.slashcommands.get(interaction.commandName);
+      if (!command) return interaction.reply({ embeds: [
+        new MessageEmbed()
+        .setColor("RED")
+        .setDescription("❌ - An error occured while running this command, deleting!")
+      ]}) && client.slashcommands.delete(interaction.commandName);
+      command.run(client, interaction)
+    }
   }
 }
   `,

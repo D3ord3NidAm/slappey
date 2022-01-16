@@ -1,21 +1,23 @@
 import { capitalize } from '../utils';
 
-export function getEnvTemplate(token: string, prefix: string) {
-  return `DISCORD_BOT_TOKEN=${token}\nDISCORD_BOT_PREFIX=${prefix}`;
+export function getEnvTemplate(token: string, prefix: string, connect: string) {
+  return `DISCORD_BOT_TOKEN=${token}\nDISCORD_BOT_PREFIX=${prefix}\nconnect=${connect}`;
 }
 
 export function getMainFile() {
   return `
 const { Client, Intents } = require('discord.js');
-const { registerCommands, registerEvents } = require('./utils/registry');
+const { registerCommands, registerSlashCommands, registerEvents } = require('./utils/registry');
 const config = require('../slappey.json');
 const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES ] });
 
 (async () => {
-  client.commands = new Map();
-  client.events = new Map();
+  client.commands = new Collection();
+  client.slashcommands = new Collection();
+  client.events = new Collection();
   client.prefix = config.prefix;
   await registerCommands(client, '../commands');
+  await registerSlashCommands(client, '../slash commands');
   await registerEvents(client, '../events');
   await client.login(config.token);
 })();\n
@@ -24,7 +26,7 @@ const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_
 
 export function getMainFileTS() {
   return `
-import { registerCommands, registerEvents } from './utils/registry';
+import { registerCommands, registerSlashCommands, registerEvents } from './utils/registry';
 import config from '../slappey.json';
 import DiscordClient from './client/client';
 import { Intents } from 'discord.js';
@@ -33,6 +35,7 @@ const client = new DiscordClient({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS
 (async () => {
   client.prefix = config.prefix || client.prefix;
   await registerCommands(client, '../commands');
+  await registerSlashCommands(client, '../slash commands');
   await registerEvents(client, '../events');
   await client.login(config.token);
 })();\n
@@ -43,10 +46,12 @@ export function getTypescriptBotFile() {
   return `import { Client, ClientOptions, Collection } from 'discord.js';
 import BaseEvent from '../utils/structures/BaseEvent';
 import BaseCommand from '../utils/structures/BaseCommand';
+import BaseSlashCommand from '../utils/structures/BaseSlashCommand';
 
 export default class DiscordClient extends Client {
 
   private _commands = new Collection<string, BaseCommand>();
+  private _slashcommands = new Collection<string, BaseSLashCommand>();
   private _events = new Collection<string, BaseEvent>();
   private _prefix: string = '!';
 
@@ -55,6 +60,7 @@ export default class DiscordClient extends Client {
   }
 
   get commands(): Collection<string, BaseCommand> { return this._commands; }
+  get slashcommands(): Collection<string, BaseSlashCommand> { return this._slashcommands; }
   get events(): Collection<string, BaseEvent> { return this._events; }
   get prefix(): string { return this._prefix; }
 
@@ -83,6 +89,20 @@ export async function registerCommands(client: DiscordClient, dir: string = '') 
       command.getAliases().forEach((alias: string) => {
         client.commands.set(alias, command);
       });
+    }
+  }
+}
+
+export async function registerSlashCommands(client: DiscordClient, dir: string = '') {
+  const filePath = path.join(__dirname, dir);
+  const files = await fs.readdir(filePath);
+  for (const file of files) {
+    const stat = await fs.lstat(path.join(filePath, file));
+    if (stat.isDirectory()) registerSlashCommands(client, path.join(dir, file));
+    if (file.endsWith('.js') || file.endsWith('.ts')) {
+      const { default: SlashCommand } = await import(path.join(dir, file));
+      const slashcommand = new SlashCommand();
+      client.slashcommands.set(slashcommand.getName(), slashcommand);
     }
   }
 }
@@ -130,6 +150,22 @@ async function registerCommands(client, dir = '') {
   }
 }
 
+async function registerSlashCommands(client, dir = '') {
+  const filePath = path.join(__dirname, dir);
+  const files = await fs.readdir(filePath);
+  for (const file of files) {
+    const stat = await fs.lstat(path.join(filePath, file));
+    if (stat.isDirectory()) registerSlashCommands(client, path.join(dir, file));
+    if (file.endsWith('.js')) {
+      const SlashCommand = require(path.join(filePath, file));
+      if (Command.prototype instanceof BaseSlashCommand) {
+        const scmd = new SlashCommand();
+        client.slashcommands.set(scmd.name, scmd);
+      }
+    }
+  }
+}
+
 async function registerEvents(client, dir = '') {
   const filePath = path.join(__dirname, dir);
   const files = await fs.readdir(filePath);
@@ -148,7 +184,8 @@ async function registerEvents(client, dir = '') {
 }
 
 module.exports = { 
-  registerCommands, 
+  registerCommands,
+  registerSlashCommands,
   registerEvents,
 };`;
 }
@@ -159,6 +196,15 @@ export function getBaseCommand() {
     this.name = name;
     this.category = category;
     this.aliases = aliases;
+  }
+}`;
+}
+
+export function getBaseSlashCommand() {
+  return `module.exports = class BaseSlashCommand {
+  constructor(name, category) {
+    this.name = name;
+    this.category = category;
   }
 }`;
 }
@@ -176,6 +222,21 @@ export default abstract class BaseCommand {
   getAliases(): Array<string> { return this.aliases; }
 
   abstract run(client: DiscordClient, message: Message, args: Array<string> | null): Promise<void>;
+}`;
+}
+
+export function getBaseSlashCommandTS() {
+  return `
+import { Message, Interaction } from 'discord.js';
+import DiscordClient from '../../client/client';
+
+export default abstract class BaseSlashCommand {
+  constructor(private name: string, private category: string) {}
+
+  getName(): string { return this.name; }
+  getCategory(): string { return this.category; }
+
+  abstract run(client: DiscordClient, interaction: Interaction): Promise<void>;
 }`;
 }
 
@@ -277,6 +338,57 @@ export default class MessageEvent extends BaseEvent {
 }`;
 }
 
+export function getInteractionEvent() {
+  return `const BaseEvent = require('../../utils/structures/BaseEvent');
+const { Client, MessageEmbed, CommandInteraction } = require("discord.js");
+  
+module.exports = class InteractionCreateEvent extends BaseEvent {
+    constructor() {
+      super('interactionCreate');
+    }
+    /*
+    *
+    * @param {CommandInteraction} interaction
+    * @param {Client} client
+    */
+    async run(client, interaction) {
+      if (interaction.isCommand() || interaction.isContextMenu()) {
+        const command = client.slashcommands.get(interaction.commandName);
+        if (!command) return interaction.reply({ embeds: [
+          new MessageEmbed()
+          .setColor("RED")
+          .setDescription("❌ - An error occured while running this command, deleting!")
+        ]}) && client.slashcommands.delete(interaction.commandName);
+        command.run(client, interaction)
+      }
+    }
+  }`;
+}
+
+export function getInteractionEventTS() {
+  return `import BaseEvent from '../../utils/structures/BaseEvent';
+import { Interaction } from 'discord.js';
+import DiscordClient from '../../client/client';
+
+export default class InteractionCreateEvent extends BaseEvent {
+    constructor() {
+      super('interactionCreate');
+    }
+
+    async run(client: DiscordClient, interaction: Interaction) {
+      if (interaction.isCommand() || interaction.isContextMenu()) {
+        const command = client.slashcommands.get(interaction.commandName);
+        if (!command) return interaction.reply({ embeds: [
+          new MessageEmbed()
+          .setColor("RED")
+          .setDescription("❌ - An error occured while running this command, deleting!")
+        ]}) && client.slashcommands.delete(interaction.commandName);
+        command.run(client, interaction)
+      }
+    }
+  }`;
+}
+
 export function getTestCommand() {
   return `const BaseCommand = require('../../utils/structures/BaseCommand');
 
@@ -307,6 +419,36 @@ export default class TestCommand extends BaseCommand {
 }`;
 }
 
+export function getTestSlashCommand() {
+  return `const BaseSlashCommand = require('../../utils/structures/BaseSlashCommand');
+
+module.exports = class TestSlashCommand extends BaseSlashCommand {
+  constructor() {
+    super('test', 'testing');
+  }
+
+  async run(client, interaction) {
+    interaction.reply('Test slash command works');
+  }
+}`;
+}
+
+export function getTestSlashCommandTS() {
+  return `import { Message, Interaction } from 'discord.js';
+import BaseSlashCommand from '../../utils/structures/BaseSlashCommand';
+import DiscordClient from '../../client/client';
+
+export default class TestSlashCommand extends BaseSlashCommand {
+  constructor() {
+    super('test', 'testing');
+  }
+
+  async run(client: DiscordClient, interaction: Interaction) {
+    interaction.reply('Test slash command works');
+  }
+}`;
+}
+
 export function getCommandTemplate(name: string, category: string) {
   return `const BaseCommand = require('../../utils/structures/BaseCommand');
 
@@ -315,7 +457,7 @@ module.exports = class ${capitalize(name)}Command extends BaseCommand {
     super('${name}', '${category}', []);
   }
 
-  run(client, message, args) {
+  async run(client, message, args) {
     message.channel.send('${name} command works');
   }
 }`;
@@ -333,6 +475,36 @@ export default class ${capitalize(name)}Command extends BaseCommand {
 
   async run(client: DiscordClient, message: Message, args: Array<string>) {
     message.channel.send('${name} command works');
+  }
+}`;
+}
+
+export function getSlashCommandTemplate(name: string, category: string) {
+  return `const BaseSlashCommand = require('../../utils/structures/BaseSlashCommand');
+
+module.exports = class ${capitalize(name)}SlashCommand extends BaseSlashCommand {
+  constructor() {
+    super('${name}', '${category}');
+  }
+
+  async run(interaction) {
+    interaction.reply('${name} slash command works');
+  }
+}`;
+}
+
+export function getSlashCommandTemplateTS(name: string, category: string) {
+  return `import { Message } from 'discord.js';
+import BaseSlashCommand from '../../utils/structures/BaseSlashCommand';
+import CommandInteraction from '../../client/client';
+
+export default class ${capitalize(name)}SlashCommand extends BaseSlashCommand {
+  constructor() {
+    super('${name}', '${category}');
+  }
+
+  async run(interaction: CommandInteraction) {
+    message.channel.send('${name} slash command works');
   }
 }`;
 }

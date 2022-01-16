@@ -3,6 +3,7 @@ import { FileSys } from './FileSys';
 import {
   FileExtension,
   getCommandName,
+  getSlashCommandName,
   Initializer,
   Language,
   getEventName,
@@ -10,18 +11,26 @@ import {
 import {
   getBaseCommand,
   getBaseCommandTS,
+  getBaseSlashCommand,
+  getBaseSlashCommandTS,
   getBaseEvent,
   getBaseEventTS,
   getCommandTemplate,
   getCommandTemplateTS,
+  getSlashCommandTemplate,
+  getSlashCommandTemplateTS,
   getMessageEvent,
   getMessageEventTS,
+  getInteractionEvent,
+  getInteractionEventTS,
   getReadyEvent,
   getReadyEventTS,
   getRegistryFile,
   getRegistryFileTS,
   getTestCommand,
   getTestCommandTS,
+  getTestSlashCommand,
+  getTestSlashCommandTS,
   getTypescriptBotFile,
 } from './templates/templates';
 import { SimpleLogger } from './Logger';
@@ -48,34 +57,43 @@ export class TemplateGenerator
   }
 
   async generateUtilities(srcPath: string) {
-    const { utils, structures, test, ready, message, client } =
+    const { utils, structures, test, ready, message, client, interaction } =
       this.getPaths(srcPath);
     await this.generateDirectories(srcPath);
     await this.generateRegistry(utils);
     if (this.language === 'typescript') await this.generateClient(client);
     await this.generateBaseCommand(structures);
+    await this.generateBaseSlashCommand(structures);
     await this.generateBaseEvent(structures);
     await this.generateTestCommand(test);
+    await this.generateTestSlashCommand(test);
     await this.generateReadyEvent(ready);
     await this.generateMessageEvent(message);
+    await this.generateInteractionEvent(interaction);
   }
 
   getPaths(srcPath: string) {
     const utils = path.join(srcPath, 'utils');
     const structures = path.join(utils, 'structures');
     const commands = path.join(srcPath, 'commands');
+    const slashCommands = path.join(srcPath, 'slashCommands');
     const events = path.join(srcPath, 'events');
     const client = path.join(srcPath, 'client');
     const test = path.join(commands, 'test');
+    const slashtest = path.join(slashCommands, 'test');
     const ready = path.join(events, 'ready');
     const message = path.join(events, 'message');
+    const interaction = path.join(events, 'interaction');
     return {
       commands,
+      slashCommands,
       utils,
       structures,
+      slashtest,
       test,
       ready,
       message,
+      interaction,
       events,
       client,
     };
@@ -92,7 +110,10 @@ export class TemplateGenerator
       utils,
       structures,
       commands,
+      slashCommands,
+      interaction,
       events,
+      slashtest,
       test,
       ready,
       client,
@@ -109,14 +130,20 @@ export class TemplateGenerator
     }
     await this.fileSys.createDirectory(commands);
     this.logger.success('Created Commands Directory');
+    await this.fileSys.createDirectory(slashCommands);
+    this.logger.success('Created Slash Commands Directory');
     await this.fileSys.createDirectory(events);
     this.logger.success('Created Events Directory');
     await this.fileSys.createDirectory(test);
     this.logger.success('Created TestCommand Directory');
+    await this.fileSys.createDirectory(slashtest);
+    this.logger.success('Created TestSlashCommand Directory');
     await this.fileSys.createDirectory(ready);
     this.logger.success('Created ReadyEvent Directory');
     await this.fileSys.createDirectory(message);
     this.logger.success('Created MessageEvent Directory');
+    await this.fileSys.createDirectory(interaction);
+    this.logger.success('Created InteractionEvent Directory');
   }
 
   async generateRegistry(filePath: string) {
@@ -132,6 +159,14 @@ export class TemplateGenerator
     const template = isJs ? getBaseCommand() : getBaseCommandTS();
     const extension: FileExtension = isJs ? 'js' : 'ts';
     const file = path.join(filePath, `BaseCommand.${extension}`);
+    await this.fileSys.createFile(file, template);
+  }
+
+  async generateBaseSlashCommand(filePath: string) {
+    const isJs = this.language === 'javascript';
+    const template = isJs ? getBaseSlashCommand() : getBaseSlashCommandTS();
+    const extension: FileExtension = isJs ? 'js' : 'ts';
+    const file = path.join(filePath, `BaseSlashCommand.${extension}`);
     await this.fileSys.createFile(file, template);
   }
 
@@ -151,6 +186,14 @@ export class TemplateGenerator
     await this.fileSys.createFile(file, template);
   }
 
+  async generateTestSlashCommand(filePath: string) {
+    const isJs = this.language === 'javascript';
+    const template = isJs ? getTestSlashCommand() : getTestSlashCommandTS();
+    const extension: FileExtension = isJs ? 'js' : 'ts';
+    const file = path.join(filePath, `TestSlashCommand.${extension}`);
+    await this.fileSys.createFile(file, template);
+  }
+
   async generateReadyEvent(filePath: string) {
     const isJs = this.language === 'javascript';
     const template = isJs ? getReadyEvent() : getReadyEventTS();
@@ -167,6 +210,14 @@ export class TemplateGenerator
     await this.fileSys.createFile(file, template);
   }
 
+  async generateInteractionEvent(filePath: string) {
+    const isJs = this.language === 'javascript';
+    const template = isJs ? getInteractionEvent() : getInteractionEventTS();
+    const extension: FileExtension = isJs ? 'js' : 'ts';
+    const file = path.join(filePath, `InteractionEvent.${extension}`);
+    await this.fileSys.createFile(file, template);
+  }
+
   async generateCommand(categoryPath: string, name: string, category: string) {
     if (!this.language) throw new Error('Language was not set');
     const fileName = getCommandName(name, this.language);
@@ -177,6 +228,21 @@ export class TemplateGenerator
       const template = isJs
         ? getCommandTemplate(name, category)
         : getCommandTemplateTS(name, category);
+      return this.fileSys.createFile(filePath, template);
+    }
+    throw new Error(`${filePath} already exists.`);
+  }
+
+  async generateSlashCommand(categoryPath: string, name: string, category: string) {
+    if (!this.language) throw new Error('Language was not set');
+    const fileName = getSlashCommandName(name, this.language);
+    const filePath = path.join(categoryPath, fileName);
+    const exists = await this.fileSys.exists(filePath);
+    if (!exists) {
+      const isJs = this.language === 'javascript';
+      const template = isJs
+        ? getSlashCommandTemplate(name, category)
+        : getSlashCommandTemplateTS(name, category);
       return this.fileSys.createFile(filePath, template);
     }
     throw new Error(`${filePath} already exists.`);

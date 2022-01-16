@@ -8,12 +8,17 @@ export const checkOptionType = (arg: any) =>
   ['new', 'gen'].some((element) => element === arg);
 
 export const checkStructType = (arg: any) =>
-  ['command', 'event'].some((element) => element === arg);
+  ['command', 'slashCommand', 'event'].some((element) => element === arg);
 
 export const getCommandName = (name: string, language: Language) =>
   language === 'javascript'
     ? `${capitalize(name)}Command.js`
     : `${capitalize(name)}Command.ts`;
+
+export const getSlashCommandName = (name: string, language: Language) =>
+  language === 'javascript'
+    ? `${capitalize(name)}SlashCommand.js`
+    : `${capitalize(name)}SlashCommand.ts`;
 
 export const getEventName = (name: string, language: Language) =>
   language === 'javascript'
